@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Danh sách sản phẩm</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        /* Grid layout cho sản phẩm */
+        #product-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        /* Style cho từng thẻ sản phẩm */
+        .product-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: transform 0.2s;
+            display: flex;
+            flex-direction: column;
+        }
+        .product-card:hover {
+            transform: translateY(-5px);
+        }
+        .product-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+        .product-info {
+            padding: 15px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .product-title {
+            font-size: 1.1em;
+            margin: 0 0 10px;
+            font-weight: bold;
+        }
+        .product-price {
+            color: #e74c3c;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Cửa hàng trực tuyến</h1>
+    <div id="product-list">Đang tải dữ liệu...</div>
+
+    <script>
+        // Đường dẫn trực tiếp đến file db.json (yêu cầu chạy bằng Live Server)
+        const API_URL = 'db.json';
+
+        // Hàm lấy dữ liệu và hiển thị
+        async function getProducts() {
+            try {
+                const response = await fetch(API_URL);
+                const products = await response.json();
+                
+                const listElement = document.getElementById('product-list');
+                listElement.innerHTML = ''; // Xóa chữ "Đang tải..."
+
+                products.forEach(product => {
+                    // --- XỬ LÝ HÌNH ẢNH THÔNG MINH ---
+                    let imageUrl = 'https://placehold.co/600x400'; // Ảnh mặc định
+                    
+                    // Ưu tiên 1: Lấy ảnh từ mảng images
+                    if (product.images && product.images.length > 0) {
+                        let rawImg = product.images[0];
+                        // Làm sạch chuỗi nếu bị lỗi format ["url"]
+                        if (typeof rawImg === 'string' && rawImg.startsWith('["')) {
+                            try { rawImg = JSON.parse(rawImg)[0]; } catch (e) {}
+                        }
+                        if (rawImg && rawImg.startsWith('http')) {
+                            imageUrl = rawImg;
+                        }
+                    }
+                    
+                    // Ưu tiên 2: Nếu ảnh trên lỗi hoặc không có, thử lấy ảnh từ Category
+                    if (imageUrl === 'https://placehold.co/600x400' && product.category && product.category.image) {
+                        if (product.category.image.startsWith('http')) {
+                            imageUrl = product.category.image;
+                        }
+                    }
+
+                    const productHTML = `
+                        <div class="product-card">
+                            <img src="${imageUrl}" 
+                                 alt="${product.title}" 
+                                 class="product-image" 
+                                 referrerpolicy="no-referrer"
+                                 onerror="this.onerror=null; this.src='https://placehold.co/600x400';">
+                            <div class="product-info">
+                                <h3 class="product-title">${product.title}</h3>
+                                <p class="product-price">$${product.price}</p>
+                            </div>
+                        </div>
+                    `;
+                    listElement.innerHTML += productHTML;
+                });
+            } catch (error) {
+                console.error('Lỗi khi tải dữ liệu:', error);
+                document.getElementById('product-list').innerText = 'Không thể tải dữ liệu. Hãy đảm bảo bạn đang chạy file này bằng "Live Server" (không mở trực tiếp file). Nhấn F12 xem Console để biết chi tiết.';
+            }
+        }
+
+        // Gọi hàm khi trang web tải xong
+        getProducts();
+    </script>
+</body>
+</html>
