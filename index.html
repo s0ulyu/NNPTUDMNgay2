@@ -3,127 +3,183 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Danh sách sản phẩm</title>
+    <title>Quản lý sản phẩm</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            margin: 0;
-            padding: 20px;
+            background-color: #f8f9fa;
         }
-        h1 {
-            text-align: center;
-            color: #333;
-        }
-        /* Grid layout cho sản phẩm */
-        #product-list {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 20px;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        /* Style cho từng thẻ sản phẩm */
-        .product-card {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            overflow: hidden;
-            transition: transform 0.2s;
-            display: flex;
-            flex-direction: column;
-        }
-        .product-card:hover {
-            transform: translateY(-5px);
-        }
-        .product-image {
-            width: 100%;
-            height: 200px;
+        .product-image-sm {
+            width: 60px;
+            height: 60px;
             object-fit: cover;
+            border-radius: 0.25rem;
         }
-        .product-info {
-            padding: 15px;
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
-        .product-title {
-            font-size: 1.1em;
-            margin: 0 0 10px;
-            font-weight: bold;
-        }
-        .product-price {
-            color: #e74c3c;
-            font-weight: bold;
-            font-size: 1.2em;
+        .table-hover tbody tr:hover {
+            cursor: pointer;
         }
     </style>
 </head>
 <body>
 
-    <h1>Cửa hàng trực tuyến</h1>
-    <div id="product-list">Đang tải dữ liệu...</div>
+    <div class="container mt-5">
+        <h1 class="mb-4 text-center">Quản lý sản phẩm</h1>
+
+        <!-- Thanh công cụ: Tìm kiếm và Sắp xếp -->
+        <div class="row mb-4">
+            <div class="col-md-5">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" id="searchInput" class="form-control" placeholder="Tìm kiếm theo tên sản phẩm..." oninput="handleSearch()">
+                </div>
+            </div>
+            <div class="col-md-7 d-flex justify-content-end align-items-center">
+                <span class="me-2 text-muted">Sắp xếp:</span>
+                <div class="btn-group" role="group">
+                    <button class="btn btn-outline-primary" onclick="handleSort('name', 'asc')"><i class="bi bi-sort-alpha-down"></i> Tên</button>
+                    <button class="btn btn-outline-primary" onclick="handleSort('name', 'desc')"><i class="bi bi-sort-alpha-up"></i> Tên</button>
+                    <button class="btn btn-outline-success" onclick="handleSort('price', 'asc')"><i class="bi bi-sort-numeric-down"></i> Giá</button>
+                    <button class="btn btn-outline-success" onclick="handleSort('price', 'desc')"><i class="bi bi-sort-numeric-up"></i> Giá</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bảng hiển thị sản phẩm -->
+        <div class="card shadow-sm">
+            <div class="table-responsive">
+                <table class="table table-hover table-bordered mb-0">
+                    <thead class="table-dark">
+                        <tr class="text-center">
+                            <th scope="col">ID</th>
+                            <th scope="col">Ảnh</th>
+                            <th scope="col">Tên sản phẩm</th>
+                            <th scope="col">Giá</th>
+                            <th scope="col">Danh mục</th>
+                        </tr>
+                    </thead>
+                    <tbody id="product-table-body">
+                        <!-- Dữ liệu sẽ được render ở đây bằng JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
     <script>
-        // Đường dẫn trực tiếp đến file db.json (yêu cầu chạy bằng Live Server)
         const API_URL = 'db.json';
+        let allProducts = []; // Lưu trữ toàn bộ sản phẩm gốc
+        let currentProducts = []; // Lưu trữ sản phẩm đang được hiển thị (sau khi lọc/sắp xếp)
 
-        // Hàm lấy dữ liệu và hiển thị
-        async function getProducts() {
-            try {
-                const response = await fetch(API_URL);
-                const products = await response.json();
+        // Hàm render bảng
+        function renderTable(products) {
+            const tableBody = document.getElementById('product-table-body');
+            tableBody.innerHTML = ''; // Xóa nội dung cũ
+
+            if (products.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-3">Không tìm thấy sản phẩm nào.</td></tr>`;
+                return;
+            }
+
+            products.forEach(product => {
+                // Xử lý logic lấy ảnh tối ưu hơn
+                let imageUrl = 'https://placehold.co/600x400';
+
+                // Hàm kiểm tra URL hợp lệ (loại bỏ placeimg.com vì server này thường xuyên lỗi)
+                const isValidUrl = (url) => url && typeof url === 'string' && url.startsWith('http') && !url.includes('placeimg.com');
+
+                if (product.images && product.images.length > 0) {
+                    let rawImg = product.images[0];
+                    // Xử lý trường hợp dữ liệu bẩn: chuỗi JSON hoặc mảng stringified
+                    if (typeof rawImg === 'string' && (rawImg.startsWith('[') || rawImg.startsWith('"'))) {
+                        try {
+                            const parsed = JSON.parse(rawImg);
+                            rawImg = Array.isArray(parsed) ? parsed[0] : parsed;
+                        } catch (e) {
+                            // Regex để cứu dữ liệu nếu JSON lỗi
+                            const match = rawImg.match(/(https?:\/\/[^"\]\\]+)/);
+                            if (match) rawImg = match[0];
+                        }
+                    }
+                    if (isValidUrl(rawImg)) imageUrl = rawImg;
+                }
                 
-                const listElement = document.getElementById('product-list');
-                listElement.innerHTML = ''; // Xóa chữ "Đang tải..."
+                // Fallback: Nếu không có ảnh sản phẩm hợp lệ, dùng ảnh danh mục
+                if (imageUrl === 'https://placehold.co/600x400' && product.category && isValidUrl(product.category.image)) {
+                    imageUrl = product.category.image;
+                }
 
-                products.forEach(product => {
-                    // --- XỬ LÝ HÌNH ẢNH THÔNG MINH ---
-                    let imageUrl = 'https://placehold.co/600x400'; // Ảnh mặc định
-                    
-                    // Ưu tiên 1: Lấy ảnh từ mảng images
-                    if (product.images && product.images.length > 0) {
-                        let rawImg = product.images[0];
-                        // Làm sạch chuỗi nếu bị lỗi format ["url"]
-                        if (typeof rawImg === 'string' && rawImg.startsWith('["')) {
-                            try { rawImg = JSON.parse(rawImg)[0]; } catch (e) {}
-                        }
-                        if (rawImg && rawImg.startsWith('http')) {
-                            imageUrl = rawImg;
-                        }
-                    }
-                    
-                    // Ưu tiên 2: Nếu ảnh trên lỗi hoặc không có, thử lấy ảnh từ Category
-                    if (imageUrl === 'https://placehold.co/600x400' && product.category && product.category.image) {
-                        if (product.category.image.startsWith('http')) {
-                            imageUrl = product.category.image;
-                        }
-                    }
+                // Định dạng giá tiền
+                const formattedPrice = new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: 'USD'
+                }).format(product.price);
 
-                    const productHTML = `
-                        <div class="product-card">
+                const row = `
+                    <tr class="align-middle">
+                        <td class="text-center">${product.id}</td>
+                        <td class="text-center">
                             <img src="${imageUrl}" 
                                  alt="${product.title}" 
-                                 class="product-image" 
+                                 class="product-image-sm" 
                                  referrerpolicy="no-referrer"
                                  onerror="this.onerror=null; this.src='https://placehold.co/600x400';">
-                            <div class="product-info">
-                                <h3 class="product-title">${product.title}</h3>
-                                <p class="product-price">$${product.price}</p>
-                            </div>
-                        </div>
-                    `;
-                    listElement.innerHTML += productHTML;
-                });
+                        </td>
+                        <td>${product.title}</td>
+                        <td class="text-end">${formattedPrice}</td>
+                        <td class="text-center">${product.category.name}</td>
+                    </tr>
+                `;
+                tableBody.innerHTML += row;
+            });
+        }
+
+        // Hàm xử lý tìm kiếm (kích hoạt khi gõ)
+        function handleSearch() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            currentProducts = allProducts.filter(p => p.title.toLowerCase().includes(searchTerm));
+            renderTable(currentProducts);
+        }
+
+        // Hàm xử lý sắp xếp
+        function handleSort(field, direction) {
+            currentProducts.sort((a, b) => {
+                let valA, valB;
+
+                if (field === 'name') {
+                    valA = a.title.toLowerCase();
+                    valB = b.title.toLowerCase();
+                } else { // field === 'price'
+                    valA = a.price;
+                    valB = b.price;
+                }
+
+                if (valA < valB) return direction === 'asc' ? -1 : 1;
+                if (valA > valB) return direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+            renderTable(currentProducts);
+        }
+
+        // Hàm khởi tạo: Lấy dữ liệu lần đầu
+        async function initialize() {
+            const tableBody = document.getElementById('product-table-body');
+            tableBody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-3">Đang tải dữ liệu...</td></tr>`;
+            try {
+                const response = await fetch(API_URL);
+                allProducts = await response.json();
+                currentProducts = [...allProducts]; // Sao chép toàn bộ sản phẩm vào danh sách hiển thị
+                renderTable(currentProducts);
             } catch (error) {
                 console.error('Lỗi khi tải dữ liệu:', error);
-                document.getElementById('product-list').innerText = 'Không thể tải dữ liệu. Hãy đảm bảo bạn đang chạy file này bằng "Live Server" (không mở trực tiếp file). Nhấn F12 xem Console để biết chi tiết.';
+                tableBody.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-3">Không thể tải dữ liệu. Vui lòng kiểm tra lại và chạy bằng Live Server.</td></tr>`;
             }
         }
 
-        // Gọi hàm khi trang web tải xong
-        getProducts();
+        // Chạy hàm khởi tạo khi DOM đã sẵn sàng
+        document.addEventListener('DOMContentLoaded', initialize);
     </script>
 </body>
 </html>
